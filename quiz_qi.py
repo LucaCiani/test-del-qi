@@ -1,10 +1,10 @@
 import os
-import shutil
 import sys
-import subprocess
-import tempfile
 import tkinter as tk
 from tkinter import messagebox
+import cv2
+import pygame
+from PIL import Image, ImageTk
 
 
 QUESTIONS = [
@@ -66,8 +66,11 @@ class QiQuiz:
         self.score = 0
         self.answers = []
         self.choice = tk.IntVar(value=-1)
+        self.video_capture = None
+        self.video_label = None
+        self.audio_playing = False
         self.build_chrome()
-        self.show_question()
+        self.show_intro()
 
     def build_chrome(self):
         self.header = tk.Frame(self.root, bg=self.BG)
@@ -81,6 +84,30 @@ class QiQuiz:
 
         self.card = tk.Frame(self.root, bg=self.CARD)
         self.card.pack(fill="both", expand=True, padx=48, pady=(0, 30))
+
+    def show_intro(self):
+        for child in self.card.winfo_children():
+            child.destroy()
+        self.counter.config(text="BENVENUTO")
+        self.progress.delete("all")
+        body = tk.Frame(self.card, bg=self.CARD)
+        body.pack(fill="both", expand=True, padx=54, pady=70)
+        tk.Label(body, text="GRAZIE PER LA PARTECIPAZIONE",
+                 font=("Segoe UI", 24, "bold"), fg=self.TEXT, bg=self.CARD).pack(pady=(25, 18))
+        tk.Label(body, text="Stai per iniziare il test del QI definitivo.\n"
+                 "Quando avrai finito, condividilo con altri amici e confrontate i risultati!",
+                 font=("Segoe UI", 14), justify="center", wraplength=700,
+                 fg=self.MUTED, bg=self.CARD).pack(pady=(0, 38))
+        tk.Button(body, text="INIZIA IL TEST  →", command=self.start_test,
+                  font=("Segoe UI", 12, "bold"), fg="white", bg=self.ACCENT,
+                  activebackground=self.ACCENT_DARK, activeforeground="white",
+                  relief="flat", bd=0, padx=30, pady=15).pack()
+
+    def start_test(self):
+        self.index = 0
+        self.score = 0
+        self.answers = []
+        self.show_question()
 
     def show_question(self):
         for child in self.card.winfo_children():
@@ -163,23 +190,49 @@ class QiQuiz:
             child.destroy()
         tk.Label(self.card, text="È RISULTATO CHE SEI STUPIDO IN CULO",
                  font=("Segoe UI", 25, "bold"), wraplength=760, justify="center",
-                 fg="#fca5a5", bg=self.CARD).pack(expand=True, padx=40)
+                 fg="#fca5a5", bg=self.CARD).pack(pady=(30, 10), padx=40)
+        self.video_label = tk.Label(self.card, bg="#000000")
+        self.video_label.pack(fill="both", expand=True, padx=35, pady=(0, 25))
         self.root.update_idletasks()
-        self.root.after(1400, lambda: self._launch_video(video))
-
-    def _launch_video(self, video):
+        self.video_capture = cv2.VideoCapture(video)
+        if not self.video_capture.isOpened():
+            messagebox.showerror("Riproduzione fallita", "Impossibile aprire il video incorporato.")
+            self.show_final()
+            return
+        audio = os.path.join(app_directory(), "media", "video_audio.wav")
         try:
-            playable_video = os.path.join(tempfile.gettempdir(), "test-del-qi-video.mp4")
-            shutil.copy2(video, playable_video)
-            self.root.withdraw()
-            if sys.platform == "win32":
-                os.startfile(playable_video)
-            else:
-                subprocess.Popen(["xdg-open", playable_video])
-            self.root.after(5000, self.show_result)
-        except OSError as error:
-            self.root.deiconify()
-            messagebox.showerror("Avvio video fallito", str(error))
+            pygame.mixer.init()
+            pygame.mixer.music.load(audio)
+            pygame.mixer.music.play()
+            self.audio_playing = True
+        except pygame.error as error:
+            self.video_capture.release()
+            self.video_capture = None
+            messagebox.showerror("Riproduzione audio fallita", str(error))
+            self.show_final()
+            return
+        self.root.after(100, self._play_next_frame)
+
+    def _play_next_frame(self):
+        if self.video_capture is None:
+            return
+        success, frame = self.video_capture.read()
+        if not success:
+            self.video_capture.release()
+            self.video_capture = None
+            if self.audio_playing:
+                pygame.mixer.music.stop()
+                pygame.mixer.quit()
+                self.audio_playing = False
+            self.show_result()
+            return
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(frame)
+        image.thumbnail((760, 400), Image.Resampling.LANCZOS)
+        self.video_label.image = ImageTk.PhotoImage(image)
+        self.video_label.configure(image=self.video_label.image)
+        fps = self.video_capture.get(cv2.CAP_PROP_FPS) or 25
+        self.root.after(max(1, round(1000 / fps)), self._play_next_frame)
 
     def show_result(self):
         self.root.deiconify()
@@ -225,10 +278,29 @@ class QiQuiz:
                      justify="left", anchor="w", fg=self.TEXT, bg="#293548",
                      padx=12, pady=9).pack(fill="x", pady=3)
         rows.bind("<Configure>", lambda event: summary.configure(scrollregion=summary.bbox("all")))
-        tk.Button(body, text="CHIUDI", command=self.root.destroy, font=("Segoe UI", 11, "bold"),
-                  fg="white", bg=self.ACCENT, activebackground=self.ACCENT_DARK,
-                  activeforeground="white", relief="flat", bd=0, padx=24, pady=13).pack(
-                      anchor="e", pady=(34, 0))
+        actions = tk.Frame(body, bg=self.CARD)
+        actions.pack(fill="x", pady=(20, 0))
+        tk.Button(actions, text="RIPETI IL TEST", command=self.restart_test,
+                  font=("Segoe UI", 11, "bold"), fg="white", bg=self.ACCENT,
+                  activebackground=self.ACCENT_DARK, activeforeground="white",
+                  relief="flat", bd=0, padx=24, pady=13).pack(side="left")
+        tk.Button(actions, text="CHIUDI", command=self.root.destroy,
+                  font=("Segoe UI", 11, "bold"), fg="white", bg="#374151",
+                  activebackground="#4b5563", activeforeground="white",
+                  relief="flat", bd=0, padx=24, pady=13).pack(side="right")
+
+    def restart_test(self):
+        if self.video_capture is not None:
+            self.video_capture.release()
+            self.video_capture = None
+        if self.audio_playing:
+            pygame.mixer.music.stop()
+            pygame.mixer.quit()
+            self.audio_playing = False
+        self.index = 0
+        self.score = 0
+        self.answers = []
+        self.show_question()
 
 
 if __name__ == "__main__":
