@@ -1,6 +1,7 @@
 import os
 import sys
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import messagebox
 import cv2
 import pygame
@@ -60,8 +61,9 @@ class QiQuiz:
         self.root = root
         self.root.title("QI // Protocollo di valutazione")
         self.root.configure(bg=self.BG)
-        self.root.minsize(760, 560)
+        self.root.minsize(600, 440)
         self.root.geometry("980x680")
+        self.root.state("zoomed")
         self.index = 0
         self.score = 0
         self.answers = []
@@ -69,6 +71,7 @@ class QiQuiz:
         self.video_capture = None
         self.video_label = None
         self.audio_playing = False
+        self.question_label = None
         self.build_chrome()
         self.show_intro()
 
@@ -125,8 +128,12 @@ class QiQuiz:
         body.pack(fill="both", expand=True, padx=54, pady=46)
         tk.Label(body, text=f"DOMANDA {self.index + 1}", font=("Segoe UI", 10, "bold"),
                  fg="#a78bfa", bg=self.CARD).pack(anchor="w")
-        tk.Label(body, text=question, font=("Segoe UI", 22, "bold"), wraplength=780,
-                 justify="left", fg=self.TEXT, bg=self.CARD).pack(anchor="w", pady=(18, 38))
+        self.question_label = tk.Label(
+            body, text=question, font=("Segoe UI", 22, "bold"), wraplength=780,
+            justify="left", anchor="w", fg=self.TEXT, bg=self.CARD
+        )
+        self.question_label.pack(fill="x", pady=(18, 38))
+        body.bind("<Configure>", self._resize_question)
 
         for number, option in enumerate(options):
             tk.Radiobutton(body, text=f"{chr(65 + number)})  {option}", variable=self.choice,
@@ -141,6 +148,32 @@ class QiQuiz:
                                      fg="white", bg="#374151", activebackground=self.ACCENT,
                                      activeforeground="white", relief="flat", bd=0, padx=20, pady=13)
         self.next_button.pack(anchor="e", pady=(28, 0))
+
+    def _resize_question(self, event):
+        if self.question_label is None or event.width <= 0:
+            return
+        available_width = max(event.width - 10, 240)
+        available_height = max(event.height - 230, 80)
+        question = self.question_label.cget("text")
+        font_size = 22
+        while font_size > 10:
+            font = tkfont.Font(family="Segoe UI", size=font_size, weight="bold")
+            line_count = 1
+            line_width = 0
+            for word in question.split():
+                word_width = font.measure(word + " ")
+                if line_width + word_width > available_width and line_width:
+                    line_count += 1
+                    line_width = word_width
+                else:
+                    line_width += word_width
+            if line_count * font.metrics("linespace") <= available_height:
+                break
+            font_size -= 1
+        self.question_label.configure(
+            font=("Segoe UI", font_size, "bold"),
+            wraplength=available_width,
+        )
 
     def enable_next(self):
         self.next_button.config(state="normal", bg=self.ACCENT)
@@ -231,7 +264,9 @@ class QiQuiz:
             return
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame)
-        image.thumbnail((760, 400), Image.Resampling.LANCZOS)
+        video_width = max(self.video_label.winfo_width() - 10, 320)
+        video_height = max(self.video_label.winfo_height() - 10, 180)
+        image.thumbnail((video_width, video_height), Image.Resampling.LANCZOS)
         self.video_label.image = ImageTk.PhotoImage(image)
         self.video_label.configure(image=self.video_label.image)
         fps = self.video_capture.get(cv2.CAP_PROP_FPS) or 25
@@ -284,7 +319,8 @@ class QiQuiz:
                 f"  Risposta corretta: {options[correct_index]}   —   {marker}\n"
                 f"  Spiegazione: {EXPLANATIONS[number]}"
             )
-            tk.Label(rows, text=text, font=("Segoe UI", 10), wraplength=790,
+            tk.Label(rows, text=text, font=("Segoe UI", 10),
+                     wraplength=max(summary.winfo_width() - 25, 300),
                      justify="left", anchor="w", fg=self.TEXT, bg="#293548",
                      padx=12, pady=9).pack(fill="x", pady=3)
         rows.bind("<Configure>", lambda event: summary.configure(scrollregion=summary.bbox("all")))
