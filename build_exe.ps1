@@ -13,4 +13,4 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --name "Test-del-
     --distpath "." --workpath "build\onefile" --specpath "build\onefile" `
     --add-data "$(Join-Path (Get-Location) 'media');media" quiz_qi.py
 
-Write-Host "Creato: dist\Test-del-QI.exe"
+Write-Host "Creato: .\Test-del-QI.exe"
