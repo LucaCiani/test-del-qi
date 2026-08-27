@@ -11,7 +11,7 @@ QUESTIONS = [
     ("Quanti mesi all'anno hanno 28 giorni?", ["Solo 1 (Febbraio)", "Tutti e 12", "Dipende se è un anno bisestile"], 1),
     ("Il padre di Chiara ha cinque figlie: Nana, Nene, Nini, Nono. Come si chiama la quinta figlia?", ["Nunu", "Nina", "Chiara"], 2),
     ("Se partecipi a una corsa a piedi e superi il secondo, in che posizione arrivi?", ["Primo", "Secondo", "Terzo"], 1),
-    ("Entri in uno chalet buio con un solo fiammifero. Ci sono una stufa a gas, una lampada ad olio e una candela. Cosa accendi per primo?", ["La candela", "La lampada ad olio", "Il fiammifero"], 2),
+    ("Entri in uno chalet buio con un solo fiammifero. Ci sono una lampada ad olio e una candela. Cosa accendi per primo?", ["La candela", "La lampada ad olio", "Il fiammifero"], 2),
     ("Un pastore ha 17 pecore. Muoiono tutte tranne 9. Quante pecore gli rimangono vive?", ["8", "9", "0"], 1),
     ("Quanti animali di ogni specie portò Mosè sull'arca prima del diluvio?", ["2 (un maschio e una femmina)", "1 per specie", "Nessuno"], 2),
     ("Il medico ti dà 3 pillole da prendere tassativamente una ogni mezz'ora. Quanto durerà la cura in tutto?", ["Un'ora e mezza", "Un'ora", "Tre ore"], 1),
