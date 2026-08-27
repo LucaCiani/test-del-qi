@@ -72,6 +72,8 @@ class QiQuiz:
         self.video_label = None
         self.audio_playing = False
         self.question_label = None
+        self.option_buttons = []
+        self.result_rows = []
         self.build_chrome()
         self.show_intro()
 
@@ -135,13 +137,18 @@ class QiQuiz:
         self.question_label.pack(fill="x", pady=(18, 38))
         body.bind("<Configure>", self._resize_question)
 
+        self.option_buttons = []
         for number, option in enumerate(options):
-            tk.Radiobutton(body, text=f"{chr(65 + number)})  {option}", variable=self.choice,
-                           value=number, command=self.enable_next, indicatoron=False,
-                           anchor="w", padx=20, pady=14, font=("Segoe UI", 12),
-                           fg=self.TEXT, bg="#293548", activebackground="#394963",
-                           activeforeground=self.TEXT, selectcolor=self.ACCENT_DARK,
-                           relief="flat", bd=0).pack(fill="x", pady=5)
+            option_button = tk.Radiobutton(
+                body, text=f"{chr(65 + number)})  {option}", variable=self.choice,
+                value=number, command=self.enable_next, indicatoron=False,
+                anchor="w", padx=20, pady=14, font=("Segoe UI", 12),
+                fg=self.TEXT, bg="#293548", activebackground="#394963",
+                activeforeground=self.TEXT, selectcolor=self.ACCENT_DARK,
+                relief="flat", bd=0
+            )
+            option_button.pack(fill="x", pady=5)
+            self.option_buttons.append(option_button)
 
         self.next_button = tk.Button(body, text="CONFERMA RISPOSTA  →", command=self.next_question,
                                      state="disabled", font=("Segoe UI", 11, "bold"),
@@ -153,9 +160,10 @@ class QiQuiz:
         if self.question_label is None or event.width <= 0:
             return
         available_width = max(event.width - 10, 240)
-        available_height = max(event.height - 230, 80)
+        scale = self._responsive_scale(event.width, event.height)
+        available_height = max(event.height - round(230 * scale), 80)
         question = self.question_label.cget("text")
-        font_size = 22
+        font_size = max(10, round(22 * scale))
         while font_size > 10:
             font = tkfont.Font(family="Segoe UI", size=font_size, weight="bold")
             line_count = 1
@@ -173,7 +181,27 @@ class QiQuiz:
         self.question_label.configure(
             font=("Segoe UI", font_size, "bold"),
             wraplength=available_width,
+            pady=0,
         )
+        option_font_size = max(9, round(12 * scale))
+        option_padx = max(10, round(20 * scale))
+        option_pady = max(7, round(14 * scale))
+        for option_button in self.option_buttons:
+            option_button.configure(
+                font=("Segoe UI", option_font_size),
+                padx=option_padx,
+                pady=option_pady,
+            )
+        if hasattr(self, "next_button"):
+            self.next_button.configure(
+                font=("Segoe UI", max(9, round(11 * scale)), "bold"),
+                padx=max(12, round(20 * scale)),
+                pady=max(8, round(13 * scale)),
+            )
+
+    @staticmethod
+    def _responsive_scale(width, height):
+        return min(max(min(width / 980, height / 680), 0.75), 1.5)
 
     def enable_next(self):
         self.next_button.config(state="normal", bg=self.ACCENT)
@@ -305,9 +333,14 @@ class QiQuiz:
         scrollbar.pack(side="right", fill="y")
         summary.pack(side="left", fill="both", expand=True)
         rows = tk.Frame(summary, bg=self.CARD)
-        summary.create_window((0, 0), window=rows, anchor="nw")
+        self.result_rows = []
+        rows_window = summary.create_window((0, 0), window=rows, anchor="nw")
         summary.bind_all("<MouseWheel>",
                          lambda event: summary.yview_scroll(-int(event.delta / 120), "units"))
+        summary.bind(
+            "<Configure>",
+            lambda event: self._resize_summary(summary, rows, rows_window, event.width),
+        )
         for number, (question, options, correct_index) in enumerate(QUESTIONS):
             selected = self.answers[number]
             is_correct = selected == correct_index
@@ -319,11 +352,14 @@ class QiQuiz:
                 f"  Risposta corretta: {options[correct_index]}   —   {marker}\n"
                 f"  Spiegazione: {EXPLANATIONS[number]}"
             )
-            tk.Label(rows, text=text, font=("Segoe UI", 10),
-                     wraplength=max(summary.winfo_width() - 25, 300),
+            row = tk.Label(rows, text=text, font=("Segoe UI", 10),
+                     wraplength=700,
                      justify="left", anchor="w", fg=self.TEXT, bg="#293548",
-                     padx=12, pady=9).pack(fill="x", pady=3)
+                     padx=12, pady=9)
+            row.pack(fill="x", pady=3)
+            self.result_rows.append(row)
         rows.bind("<Configure>", lambda event: summary.configure(scrollregion=summary.bbox("all")))
+        body.bind("<Configure>", self._resize_results)
         actions = tk.Frame(body, bg=self.CARD)
         actions.pack(fill="x", pady=(20, 0))
         tk.Button(actions, text="RIPETI IL TEST", command=self.restart_test,
@@ -334,6 +370,26 @@ class QiQuiz:
                   font=("Segoe UI", 11, "bold"), fg="white", bg="#374151",
                   activebackground="#4b5563", activeforeground="white",
                   relief="flat", bd=0, padx=24, pady=13).pack(side="right")
+
+    def _resize_summary(self, summary, rows, rows_window, width):
+        content_width = max(width - 12, 300)
+        summary.itemconfigure(rows_window, width=content_width)
+        for row in rows.winfo_children():
+            row.configure(wraplength=max(content_width - 28, 260))
+
+    def _resize_results(self, event):
+        if event.width <= 0 or event.height <= 0:
+            return
+        scale = self._responsive_scale(event.width, event.height)
+        row_font_size = max(8, round(10 * scale))
+        row_padx = max(8, round(12 * scale))
+        row_pady = max(6, round(9 * scale))
+        for row in self.result_rows:
+            row.configure(
+                font=("Segoe UI", row_font_size),
+                padx=row_padx,
+                pady=row_pady,
+            )
 
     def restart_test(self):
         if self.video_capture is not None:
