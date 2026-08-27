@@ -193,6 +193,10 @@ class QiQuiz:
                  fg="#fca5a5", bg=self.CARD).pack(pady=(30, 10), padx=40)
         self.video_label = tk.Label(self.card, bg="#000000")
         self.video_label.pack(fill="both", expand=True, padx=35, pady=(0, 25))
+        tk.Button(self.card, text="MOSTRA I RISULTATI  →", command=self.show_result,
+                  font=("Segoe UI", 11, "bold"), fg="white", bg=self.ACCENT,
+                  activebackground=self.ACCENT_DARK, activeforeground="white",
+                  relief="flat", bd=0, padx=22, pady=11).pack(pady=(0, 20))
         self.root.update_idletasks()
         self.video_capture = cv2.VideoCapture(video)
         if not self.video_capture.isOpened():
@@ -224,7 +228,6 @@ class QiQuiz:
                 pygame.mixer.music.stop()
                 pygame.mixer.quit()
                 self.audio_playing = False
-            self.show_result()
             return
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame)
@@ -235,6 +238,13 @@ class QiQuiz:
         self.root.after(max(1, round(1000 / fps)), self._play_next_frame)
 
     def show_result(self):
+        if self.video_capture is not None:
+            self.video_capture.release()
+            self.video_capture = None
+        if self.audio_playing:
+            pygame.mixer.music.stop()
+            pygame.mixer.quit()
+            self.audio_playing = False
         self.root.deiconify()
         for child in self.card.winfo_children():
             child.destroy()
@@ -300,7 +310,7 @@ class QiQuiz:
         self.index = 0
         self.score = 0
         self.answers = []
-        self.show_question()
+        self.show_intro()
 
 
 if __name__ == "__main__":
