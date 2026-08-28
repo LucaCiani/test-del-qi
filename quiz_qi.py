@@ -56,6 +56,8 @@ class QiQuiz:
     MUTED = "#94a3b8"
     ACCENT = "#8b5cf6"
     ACCENT_DARK = "#6d28d9"
+    SUCCESS = "#34d399"
+    ERROR = "#fb7185"
 
     def __init__(self, root):
         self.root = root
@@ -346,18 +348,38 @@ class QiQuiz:
             is_correct = selected == correct_index
             selected_text = options[selected] if selected >= 0 else "Nessuna risposta"
             marker = "✓ CORRETTA" if is_correct else "✗ SBAGLIATA"
-            text = (
-                f"{number + 1}. {question}\n"
-                f"  Risposta data: {selected_text}\n"
-                f"  Risposta corretta: {options[correct_index]}   —   {marker}\n"
-                f"  Spiegazione: {EXPLANATIONS[number]}"
-            )
-            row = tk.Label(rows, text=text, font=("Segoe UI", 10),
-                     wraplength=700,
-                     justify="left", anchor="w", fg=self.TEXT, bg="#293548",
-                     padx=12, pady=9)
+            status_color = self.SUCCESS if is_correct else self.ERROR
+            row = tk.Frame(rows, bg="#293548", padx=16, pady=14)
             row.pack(fill="x", pady=3)
-            self.result_rows.append(row)
+            status = tk.Label(
+                row, text=marker, font=("Segoe UI", 10, "bold"),
+                fg=status_color, bg="#293548", anchor="w"
+            )
+            status.pack(fill="x", pady=(0, 10))
+            question_label = tk.Label(
+                row, text=f"{number + 1}. {question}", font=("Segoe UI", 10, "bold"),
+                justify="left", anchor="w", fg=self.TEXT, bg="#293548"
+            )
+            question_label.pack(fill="x", pady=(0, 12))
+            given_label = tk.Label(
+                row, text=f"Risposta data: {selected_text}", font=("Segoe UI", 10),
+                justify="left", anchor="w", fg=status_color, bg="#293548"
+            )
+            given_label.pack(fill="x", pady=(0, 9))
+            correct_label = tk.Label(
+                row, text=f"Risposta corretta: {options[correct_index]}",
+                font=("Segoe UI", 10), justify="left", anchor="w",
+                fg=self.SUCCESS, bg="#293548"
+            )
+            correct_label.pack(fill="x", pady=(0, 9))
+            explanation_label = tk.Label(
+                row, text=f"Soluzione: {EXPLANATIONS[number]}", font=("Segoe UI", 10),
+                justify="left", anchor="w", fg="#cbd5e1", bg="#293548"
+            )
+            explanation_label.pack(fill="x")
+            self.result_rows.append(
+                (row, status, question_label, given_label, correct_label, explanation_label)
+            )
         rows.bind("<Configure>", lambda event: summary.configure(scrollregion=summary.bbox("all")))
         body.bind("<Configure>", self._resize_results)
         actions = tk.Frame(body, bg=self.CARD)
@@ -375,7 +397,9 @@ class QiQuiz:
         content_width = max(width - 12, 300)
         summary.itemconfigure(rows_window, width=content_width)
         for row in rows.winfo_children():
-            row.configure(wraplength=max(content_width - 28, 260))
+            for child in row.winfo_children():
+                if isinstance(child, tk.Label):
+                    child.configure(wraplength=max(content_width - 32, 260))
 
     def _resize_results(self, event):
         if event.width <= 0 or event.height <= 0:
@@ -384,12 +408,16 @@ class QiQuiz:
         row_font_size = max(8, round(10 * scale))
         row_padx = max(8, round(12 * scale))
         row_pady = max(6, round(9 * scale))
-        for row in self.result_rows:
+        for row, status, question_label, given_label, correct_label, explanation_label in self.result_rows:
             row.configure(
-                font=("Segoe UI", row_font_size),
                 padx=row_padx,
                 pady=row_pady,
             )
+            status.configure(font=("Segoe UI", row_font_size, "bold"))
+            question_label.configure(font=("Segoe UI", row_font_size, "bold"))
+            given_label.configure(font=("Segoe UI", row_font_size))
+            correct_label.configure(font=("Segoe UI", row_font_size))
+            explanation_label.configure(font=("Segoe UI", row_font_size))
 
     def restart_test(self):
         if self.video_capture is not None:
