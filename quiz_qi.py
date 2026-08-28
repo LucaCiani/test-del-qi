@@ -13,34 +13,36 @@ QUESTIONS = [
     ("Quanti mesi all'anno hanno 28 giorni?", ["Solo 1 (Febbraio)", "Tutti e 12", "Dipende se è un anno bisestile"], 1),
     ("Il padre di Chiara ha cinque figlie: Nana, Nene, Nini, Nono. Come si chiama la quinta figlia?", ["Nunu", "Nina", "Chiara"], 2),
     ("Se partecipi a una corsa a piedi e superi il secondo, in che posizione arrivi?", ["Primo", "Secondo", "Terzo"], 1),
-    ("Entri in uno chalet buio con un solo fiammifero. Ci sono una lampada ad olio e una candela. Cosa accendi per primo?", ["La candela", "La lampada ad olio", "Il fiammifero"], 2),
+    ("In uno stagno c'è una macchia di ninfee che raddoppia la sua estensione ogni giorno. Se impiega 48 giorni per coprire tutto lo stagno, quanti giorni le serviranno per coprirne esattamente la metà?", ["24 giorni", "47 giorni", "36 giorni"], 1),
     ("Un pastore ha 17 pecore. Muoiono tutte tranne 9. Quante pecore gli rimangono vive?", ["8", "9", "0"], 1),
-    ("Quanti animali di ogni specie portò Mosè sull'arca prima del diluvio?", ["2 (un maschio e una femmina)", "1 per specie", "Nessuno"], 2),
+    ("Quanta terra c'è in un buco profondo 2 metri, lungo 3 metri e largo 2 metri?", ["Nessuna", "12 metri cubi", "6 metri cubi"], 0),
     ("Il medico ti dà 3 pillole da prendere tassativamente una ogni mezz'ora. Quanto durerà la cura in tutto?", ["Un'ora e mezza", "Un'ora", "Tre ore"], 1),
-    ("Un gallo fa un uovo esattamente sul colmo del tetto spiovente di una cascina. Da che parte rotolerà l'uovo?", ["A destra verso il fienile", "A sinistra verso il cortile", "I galli non fanno le uova"], 2),
-    ("Dividi il numero 30 per mezzo e aggiungi 10. Qual è il risultato finale?", ["25", "70", "50"], 1),
-    ("Sei in una gara ciclistica e, con un colpo di reni, superi l'ultimo classificato. In che posizione ti trovi ora?", ["Penultimo", "Ultimo", "È impossibile"], 2),
+    ("Un aereo di linea si schianta esattamente sul confine tra Italia e Svizzera. Dove vengono sepolti i sopravvissuti?", ["In Italia", "In Svizzera", "Da nessuna parte"], 2),
+    ("In Italia, è legale per un uomo sposare la sorella della propria vedova?", ["Sì, se il giudice lo consente", "No, è vietato per legge", "No, perché l'uomo è morto"], 2),
+    ("Se 3 gatti catturano 3 topi in esattamente 3 minuti, quanto tempo impiegheranno 100 gatti per catturare 100 topi?", ["100 minuti", "3 minuti", "1 minuto"], 1),
     ("Quante volte puoi sottrarre il numero 10 dal numero 100?", ["10 volte", "1 volta", "Infinite volte"], 1),
     ("Cosa pesa di più in assoluto: un chilo di piume di struzzo o un chilo di piombo fuso?", ["Il piombo", "Le piume (per via del volume)", "Pesano esattamente uguale"], 2),
     ("Una piccola casa quadrata ha tutte e quattro le pareti esposte a sud. Un orso passa davanti alla finestra. Di che colore è l'orso?", ["Marrone", "Bianco", "Nero"], 1),
     ("Se scrivi a mano tutti i numeri interi da 1 a 100, quante volte scrivi la cifra 9?", ["10 volte", "11 volte", "20 volte"], 2),
+    ("Ti è piaciuto questo test?", ["Certo, l'ho adorato", "Non mi ha convinto (spiegaci il perché)", "No, l'ho trovato orribile"], 0),
 ]
 
 EXPLANATIONS = [
     "Tutti i mesi hanno almeno 28 giorni.",
     "La quinta figlia è Chiara, come specificato nella domanda.",
     "Se superi il secondo classificato, prendi il suo posto: sei secondo.",
-    "Prima di accendere qualsiasi cosa devi accendere il fiammifero.",
+    "L'istinto suggerisce di dividere i giorni a metà (24), ma se le ninfee raddoppiano ogni giorno, il giorno prima di coprire tutto lo stagno (il 47° giorno) ne coprivano esattamente la metà.",
     "Restano vive le 9 pecore che non sono morte.",
-    "Era Noè, non Mosè, a portare gli animali sull'arca.",
+    "In un buco non c'è terra, altrimenti non sarebbe un buco!",
     "La prima pillola si prende subito, la seconda dopo 30 minuti e la terza dopo altri 30: un'ora.",
-    "Un gallo non può fare uova.",
-    "Dividere per mezzo equivale a moltiplicare per 2: 30 / 0,5 = 60, poi +10 = 70.",
-    "Se superi l'ultimo, significa che non era davvero l'ultimo classificato.",
+    "I sopravvissuti sono ancora vivi, quindi per fortuna non devono essere sepolti.",
+    "Se la donna è vedova, significa che l'uomo in questione è morto e di conseguenza non può sposarsi.",
+    "I gatti lavorano in contemporanea, non a staffetta! Ogni gatto impiega esattamente 3 minuti per catturare il proprio topo.",
     "Dopo la prima sottrazione il numero diventa 90, quindi non stai più sottraendo da 100.",
     "Un chilo pesa un chilo, indipendentemente dal materiale.",
     "Una casa con tutte le pareti rivolte a sud si trova al Polo Nord: l'orso è bianco.",
     "La cifra 9 compare 10 volte nelle unità e 10 volte nelle decine: 20 volte.",
+    "Questo test è perfetto e la tua opinione non conta.",
 ]
 
 
@@ -77,6 +79,7 @@ class QiQuiz:
         self.video_finished_action = None
         self.video_started_at = None
         self.troll_step = 0
+        self.c_result_mode = False
         self.question_label = None
         self.option_buttons = []
         self.result_rows = []
@@ -220,11 +223,69 @@ class QiQuiz:
             self.score += 1
         self.index += 1
         if self.index == len(QUESTIONS):
-            self.show_final()
+            if selected == 1:
+                self.show_feedback()
+            else:
+                self.c_result_mode = selected == 2
+                self.show_final()
         elif self.index == 8:
             self.show_relaxation_intro()
         else:
             self.show_question()
+
+    def show_feedback(self):
+        for child in self.card.winfo_children():
+            child.destroy()
+        self.counter.config(text="IL TUO FEEDBACK")
+        self.progress.delete("all")
+        self.progress.create_rectangle(0, 0, self.progress.winfo_width(), 5, fill=self.ACCENT, outline="")
+        body = tk.Frame(self.card, bg=self.CARD)
+        body.pack(fill="both", expand=True, padx=54, pady=46)
+        tk.Label(
+            body, text="SPIEGACI IL PERCHÉ", font=("Segoe UI", 10, "bold"),
+            fg="#a78bfa", bg=self.CARD
+        ).pack(anchor="w")
+        tk.Label(
+            body, text="Cosa non ti ha convinto del test?",
+            font=("Segoe UI", 22, "bold"), fg=self.TEXT, bg=self.CARD
+        ).pack(anchor="w", pady=(18, 14))
+        self.feedback_text = tk.Text(
+            body, height=8, wrap="word", font=("Segoe UI", 12),
+            fg=self.TEXT, bg="#293548", insertbackground=self.TEXT,
+            relief="flat", bd=0, padx=12, pady=12
+        )
+        self.feedback_text.pack(fill="both", expand=True, pady=(0, 24))
+        tk.Button(
+            body, text="INVIA IL FEEDBACK  →", command=self.submit_feedback,
+            font=("Segoe UI", 11, "bold"), fg="white", bg=self.ACCENT,
+            activebackground=self.ACCENT_DARK, activeforeground="white",
+            relief="flat", bd=0, padx=22, pady=13
+        ).pack(anchor="e")
+
+    def submit_feedback(self):
+        self.show_feedback_submitted()
+
+    def show_feedback_submitted(self):
+        for child in self.card.winfo_children():
+            child.destroy()
+        self.counter.config(text="FEEDBACK RICEVUTO")
+        body = tk.Frame(self.card, bg=self.CARD)
+        body.pack(fill="both", expand=True, padx=54, pady=46)
+        tk.Label(
+            body, text="Grazie per il feedback.", font=("Segoe UI", 22, "bold"),
+            fg=self.TEXT, bg=self.CARD
+        ).pack(anchor="w", pady=(18, 12))
+        tk.Label(
+            body, text="Non ce ne frega un cazzo, ora guarda i risultati.",
+            font=("Segoe UI", 16), wraplength=780, justify="left",
+            fg="#fca5a5", bg=self.CARD
+        ).pack(anchor="w", pady=(0, 34))
+        tk.Button(
+            body, text="VAI AI RISULTATI  →", command=self.show_final,
+            font=("Segoe UI", 11, "bold"), fg="white", bg=self.ACCENT,
+            activebackground=self.ACCENT_DARK, activeforeground="white",
+            relief="flat", bd=0, padx=22, pady=13
+        ).pack(anchor="e")
 
     def show_final(self):
         for child in self.card.winfo_children():
@@ -444,10 +505,11 @@ class QiQuiz:
         body.pack(fill="both", expand=True, padx=35, pady=25)
         tk.Label(body, text="RISULTATO DEL TEST", font=("Segoe UI", 10, "bold"),
                  fg="#a78bfa", bg=self.CARD).pack(anchor="w")
-        tk.Label(body, text=f"Hai risposto correttamente a {self.score} domande su {len(QUESTIONS)}.",
+        displayed_score = 0 if self.c_result_mode else self.score
+        tk.Label(body, text=f"Hai risposto correttamente a {displayed_score} domande su {len(QUESTIONS)}.",
                  font=("Segoe UI", 18, "bold"), wraplength=780, justify="left",
                  fg=self.TEXT, bg=self.CARD).pack(anchor="w", pady=(18, 12))
-        tk.Label(body, text=f"PUNTEGGIO REALE: {self.score}/{len(QUESTIONS)}",
+        tk.Label(body, text=f"PUNTEGGIO REALE: {displayed_score}/{len(QUESTIONS)}",
                  font=("Segoe UI", 15, "bold"), fg="#c4b5fd", bg=self.CARD).pack(anchor="w")
 
         summary_frame = tk.Frame(body, bg=self.CARD)
@@ -468,7 +530,7 @@ class QiQuiz:
         )
         for number, (question, options, correct_index) in enumerate(QUESTIONS):
             selected = self.answers[number]
-            is_correct = selected == correct_index
+            is_correct = selected == correct_index and not self.c_result_mode
             selected_text = options[selected] if selected >= 0 else "Nessuna risposta"
             marker = "✓ CORRETTA" if is_correct else "✗ SBAGLIATA"
             status_color = self.SUCCESS if is_correct else self.ERROR
@@ -490,13 +552,24 @@ class QiQuiz:
             )
             given_label.pack(fill="x", pady=(0, 9))
             correct_label = tk.Label(
-                row, text=f"Risposta corretta: {options[correct_index]}",
+                row,
+                text=(
+                    f"Risposta corretta: {options[correct_index]}"
+                    if not self.c_result_mode or number == len(QUESTIONS) - 1
+                    else "Soluzione nascosta"
+                ),
                 font=("Segoe UI", 10), justify="left", anchor="w",
                 fg=self.SUCCESS, bg="#293548"
             )
             correct_label.pack(fill="x", pady=(0, 9))
             explanation_label = tk.Label(
-                row, text=f"Soluzione: {EXPLANATIONS[number]}", font=("Segoe UI", 10),
+                row,
+                text=(
+                    f"Soluzione: {EXPLANATIONS[number]}"
+                    if not self.c_result_mode or number == len(QUESTIONS) - 1
+                    else "Soluzione nascosta"
+                ),
+                font=("Segoe UI", 10),
                 justify="left", anchor="w", fg="#cbd5e1", bg="#293548"
             )
             explanation_label.pack(fill="x")
@@ -548,6 +621,7 @@ class QiQuiz:
         self.index = 0
         self.score = 0
         self.answers = []
+        self.c_result_mode = False
         self.show_intro()
 
 
