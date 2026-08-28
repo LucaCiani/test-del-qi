@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import messagebox
@@ -73,6 +74,9 @@ class QiQuiz:
         self.video_capture = None
         self.video_label = None
         self.audio_playing = False
+        self.video_finished_action = None
+        self.video_started_at = None
+        self.troll_step = 0
         self.question_label = None
         self.option_buttons = []
         self.result_rows = []
@@ -217,6 +221,8 @@ class QiQuiz:
         self.index += 1
         if self.index == len(QUESTIONS):
             self.show_final()
+        elif self.index == 8:
+            self.show_relaxation_intro()
         else:
             self.show_question()
 
@@ -234,15 +240,114 @@ class QiQuiz:
                  font=("Segoe UI", 22, "bold"), fg=self.TEXT, bg=self.CARD).pack(anchor="w", pady=(18, 8))
         tk.Label(body, text="Vuoi scoprire il tuo vero livello di intelligenza?",
                  font=("Segoe UI", 14), fg=self.MUTED, bg=self.CARD).pack(anchor="w", pady=(0, 34))
-        buttons = [
-            "CERTO, MOSTRAMI IL RISULTATO!",
-            "RIVELAMI QUANTO SONO GENIO!",
-            "VISUALIZZA IL MIO QI ESATTO",
+        self.troll_step = 0
+        self.troll_button = tk.Button(
+            body, text="CERTO, MOSTRAMI IL RISULTATO!",
+            command=self.advance_troll, font=("Segoe UI", 11, "bold"),
+            fg="white", bg=self.ACCENT, activebackground=self.ACCENT_DARK,
+            activeforeground="white", relief="flat", bd=0, padx=18, pady=13
+        )
+        self.troll_button.pack(fill="x", pady=5)
+
+    def advance_troll(self):
+        messages = [
+            "SEI SICURO?",
+            "DAVVERO SICURO?",
+            "ULTIMA POSSIBILITÀ...",
+            "OK, ORMAI È TROPPO TARDI..."
         ]
-        for text in buttons:
-            tk.Button(body, text=text, command=self.play_video, font=("Segoe UI", 11, "bold"),
-                      fg="white", bg=self.ACCENT, activebackground=self.ACCENT_DARK,
-                      activeforeground="white", relief="flat", bd=0, padx=18, pady=13).pack(fill="x", pady=5)
+        if self.troll_step < len(messages):
+            self.troll_button.config(text=messages[self.troll_step])
+            self.troll_step += 1
+            return
+        self.play_video()
+
+    def show_relaxation_intro(self):
+        for child in self.card.winfo_children():
+            child.destroy()
+        self.counter.config(text="PAUSA RILASSANTE")
+        self.progress.delete("all")
+        self.progress.create_rectangle(
+            0, 0, self.progress.winfo_width() * self.index / len(QUESTIONS), 5,
+            fill=self.ACCENT, outline=""
+        )
+        body = tk.Frame(self.card, bg=self.CARD)
+        body.pack(fill="both", expand=True, padx=54, pady=46)
+        tk.Label(
+            body, text="PRENDITI UN MOMENTO PER RILASSARTI",
+            font=("Segoe UI", 10, "bold"), fg="#a78bfa", bg=self.CARD
+        ).pack(anchor="w")
+        tk.Label(
+            body,
+            text="Rilassati e goditi questo video: ti aiuterà a concentrarti "
+                 "per rispondere correttamente alle prossime domande.",
+            font=("Segoe UI", 20, "bold"), wraplength=780, justify="left",
+            fg=self.TEXT, bg=self.CARD
+        ).pack(anchor="w", pady=(18, 14))
+        tk.Label(
+            body, text="Quando vuoi, puoi avviare il video oppure passare direttamente alla domanda 9.",
+            font=("Segoe UI", 13), wraplength=780, justify="left",
+            fg=self.MUTED, bg=self.CARD
+        ).pack(anchor="w", pady=(0, 32))
+        tk.Button(
+            body, text="AVVIA IL VIDEO RILASSANTE  ▶",
+            command=self.play_relaxation_video, font=("Segoe UI", 11, "bold"),
+            fg="white", bg=self.ACCENT, activebackground=self.ACCENT_DARK,
+            activeforeground="white", relief="flat", bd=0, padx=22, pady=13
+        ).pack(fill="x", pady=5)
+        tk.Button(
+            body, text="SALTA E VAI ALLA DOMANDA 9  →",
+            command=self.skip_relaxation, font=("Segoe UI", 11, "bold"),
+            fg="white", bg="#374151", activebackground="#4b5563",
+            activeforeground="white", relief="flat", bd=0, padx=22, pady=13
+        ).pack(fill="x", pady=5)
+
+    def play_relaxation_video(self):
+        video = os.path.join(app_directory(), "media", "Random pop-up video (Scary).mp4")
+        if not os.path.isfile(video):
+            messagebox.showerror("Media non trovato", f"Impossibile trovare il video:\n{video}")
+            return
+        for child in self.card.winfo_children():
+            child.destroy()
+        tk.Label(
+            self.card, text="RESPIRA PROFONDAMENTE E RILASSATI",
+            font=("Segoe UI", 22, "bold"), wraplength=760, justify="center",
+            fg="#a7f3d0", bg=self.CARD
+        ).pack(pady=(25, 10), padx=40)
+        self.video_label = tk.Label(self.card, bg="#000000")
+        self.video_label.pack(fill="both", expand=True, padx=35, pady=(0, 20))
+        tk.Button(
+            self.card, text="SALTA IL VIDEO E VAI ALLA DOMANDA 9  →",
+            command=self.skip_relaxation, font=("Segoe UI", 11, "bold"),
+            fg="white", bg=self.ACCENT, activebackground=self.ACCENT_DARK,
+            activeforeground="white", relief="flat", bd=0, padx=22, pady=11
+        ).pack(pady=(0, 20))
+        self.video_finished_action = self.skip_relaxation
+        self.root.update_idletasks()
+        self.video_capture = cv2.VideoCapture(video)
+        if not self.video_capture.isOpened():
+            messagebox.showerror("Riproduzione fallita", "Impossibile aprire il video rilassante.")
+            self.skip_relaxation()
+            return
+        audio = os.path.join(app_directory(), "media", "relaxation_audio.wav")
+        try:
+            pygame.mixer.init()
+            pygame.mixer.music.load(audio)
+            pygame.mixer.music.play()
+            self.audio_playing = True
+            self.video_started_at = time.monotonic()
+        except pygame.error as error:
+            self.video_capture.release()
+            self.video_capture = None
+            messagebox.showerror("Riproduzione audio fallita", str(error))
+            self.skip_relaxation()
+            return
+        self.root.after(10, self._play_next_frame)
+
+    def skip_relaxation(self):
+        self._stop_video()
+        self.video_finished_action = None
+        self.show_question()
 
     def play_video(self):
         video = os.path.join(app_directory(), "media", "videoplayback.mp4")
@@ -261,6 +366,7 @@ class QiQuiz:
                   activebackground=self.ACCENT_DARK, activeforeground="white",
                   relief="flat", bd=0, padx=22, pady=11).pack(pady=(0, 20))
         self.root.update_idletasks()
+        self.video_finished_action = None
         self.video_capture = cv2.VideoCapture(video)
         if not self.video_capture.isOpened():
             messagebox.showerror("Riproduzione fallita", "Impossibile aprire il video incorporato.")
@@ -272,13 +378,14 @@ class QiQuiz:
             pygame.mixer.music.load(audio)
             pygame.mixer.music.play()
             self.audio_playing = True
+            self.video_started_at = time.monotonic()
         except pygame.error as error:
             self.video_capture.release()
             self.video_capture = None
             messagebox.showerror("Riproduzione audio fallita", str(error))
             self.show_final()
             return
-        self.root.after(100, self._play_next_frame)
+        self.root.after(10, self._play_next_frame)
 
     def _play_next_frame(self):
         if self.video_capture is None:
@@ -291,6 +398,10 @@ class QiQuiz:
                 pygame.mixer.music.stop()
                 pygame.mixer.quit()
                 self.audio_playing = False
+            if self.video_finished_action is not None:
+                action = self.video_finished_action
+                self.video_finished_action = None
+                action()
             return
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame)
@@ -300,9 +411,16 @@ class QiQuiz:
         self.video_label.image = ImageTk.PhotoImage(image)
         self.video_label.configure(image=self.video_label.image)
         fps = self.video_capture.get(cv2.CAP_PROP_FPS) or 25
-        self.root.after(max(1, round(1000 / fps)), self._play_next_frame)
+        frame_number = max(self.video_capture.get(cv2.CAP_PROP_POS_FRAMES) - 1, 0)
+        frame_time_ms = frame_number * 1000 / fps
+        elapsed_ms = (
+            (time.monotonic() - self.video_started_at) * 1000
+            if self.video_started_at is not None else 0
+        )
+        delay_ms = round(frame_time_ms - elapsed_ms)
+        self.root.after(max(1, delay_ms), self._play_next_frame)
 
-    def show_result(self):
+    def _stop_video(self):
         if self.video_capture is not None:
             self.video_capture.release()
             self.video_capture = None
@@ -310,6 +428,11 @@ class QiQuiz:
             pygame.mixer.music.stop()
             pygame.mixer.quit()
             self.audio_playing = False
+        self.video_started_at = None
+
+    def show_result(self):
+        self._stop_video()
+        self.video_finished_action = None
         self.root.deiconify()
         for child in self.card.winfo_children():
             child.destroy()
@@ -420,13 +543,8 @@ class QiQuiz:
             explanation_label.configure(font=("Segoe UI", row_font_size))
 
     def restart_test(self):
-        if self.video_capture is not None:
-            self.video_capture.release()
-            self.video_capture = None
-        if self.audio_playing:
-            pygame.mixer.music.stop()
-            pygame.mixer.quit()
-            self.audio_playing = False
+        self._stop_video()
+        self.video_finished_action = None
         self.index = 0
         self.score = 0
         self.answers = []
